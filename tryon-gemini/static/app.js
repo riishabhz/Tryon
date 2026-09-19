@@ -26,6 +26,30 @@ function storage(action, key, value) {
     return null;
 }
 
+// A random private ID for this browser. When the app is hosted, the server
+// keeps each visitor's photo and try-ons under it; locally it's ignored.
+const SESSION_ID = (() => {
+    const fresh = () => crypto.getRandomValues(new Uint8Array(16))
+        .reduce((hex, b) => hex + b.toString(16).padStart(2, "0"), "");
+    try {
+        let sid = localStorage.getItem("driplab:sid");
+        if (!/^[0-9a-f]{32}$/.test(sid || "")) {
+            sid = fresh();
+            localStorage.setItem("driplab:sid", sid);
+        }
+        return sid;
+    } catch {
+        return fresh();   // storage blocked: private for this page load only
+    }
+})();
+
+function api(url, options = {}) {
+    return fetch(url, {
+        ...options,
+        headers: { ...(options.headers || {}), "X-Session-Id": SESSION_ID },
+    });
+}
+
 /* ---------------- Init ---------------- */
 
 async function init() {
@@ -145,7 +169,7 @@ function setGender(gender) {
 }
 
 async function loadStores() {
-    const stores = await fetch("/api/stores").then((r) => r.json());
+    const stores = await api("/api/stores").then((r) => r.json());
     state.allStores = stores;
     const wrap = $("#store-chips");
     wrap.innerHTML = "";
@@ -159,7 +183,7 @@ async function loadStores() {
 }
 
 async function loadTypes(gender) {
-    const types = await fetch(`/api/types?gender=${gender}`).then((r) => r.json());
+    const types = await api(`/api/types?gender=${gender}`).then((r) => r.json());
     const wrap = $("#type-chips");
     wrap.innerHTML = "";
     for (const t of [{ key: "auto", label: "Auto" }, ...types]) {
@@ -208,7 +232,7 @@ async function runSearch() {
             type: state.type,
             stores: selectedStores().join(","),
         });
-        const data = await fetch(`/api/search?${api}`).then((r) => r.json());
+        const data = await api(`/api/search?${api}`).then((r) => r.json());
         if (seq !== searchSeq) return;   // a newer search superseded this one
 
         // The query may have named a gender ("mens hoodie"): follow it.
@@ -506,7 +530,7 @@ async function uploadPhoto(file) {
     const form = new FormData();
     form.append("file", file);
     try {
-        const res = await fetch("/api/photo", { method: "POST", body: form });
+        const res = await api("/api/photo", { method: "POST", body: form });
         if (!res.ok) {
             const detail = (await res.json()).detail || res.statusText;
             throw new Error(detail);
@@ -520,7 +544,7 @@ async function uploadPhoto(file) {
 
 async function refreshPhoto() {
     try {
-        const data = await fetch("/api/photo").then((r) => r.json());
+        const data = await api("/api/photo").then((r) => r.json());
         if (data.exists) showPhoto(data.url);
     } catch { /* server starting up */ }
 }
@@ -565,7 +589,7 @@ async function startTryOn(product, btn, card) {
     clearCardError(card);
 
     try {
-        const res = await fetch("/api/tryon", {
+        const res = await api("/api/tryon", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -591,7 +615,7 @@ async function startTryOn(product, btn, card) {
 async function pollJob(jobId, product, btn, card) {
     const started = Date.now();
     while (true) {
-        const job = await fetch(`/api/tryon/${jobId}`).then((r) => r.json());
+        const job = await api(`/api/tryon/${jobId}`).then((r) => r.json());
         if (job.status === "done") {
             resetTryBtn(btn);
             openModal(product, job.result_url);
@@ -644,7 +668,7 @@ async function clearGallery() {
     const btn = $("#gallery-clear");
     btn.disabled = true;
     try {
-        const res = await fetch("/api/tryons", { method: "DELETE" });
+        const res = await api("/api/tryons", { method: "DELETE" });
         if (!res.ok) throw new Error(res.statusText);
         await loadGallery();
     } catch (err) {
@@ -656,7 +680,7 @@ async function clearGallery() {
 
 async function loadGallery() {
     try {
-        const items = await fetch("/api/tryons").then((r) => r.json());
+        const items = await api("/api/tryons").then((r) => r.json());
         const section = $("#gallery-section");
         const strip = $("#gallery-strip");
         if (!items.length) {

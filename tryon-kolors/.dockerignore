@@ -1,0 +1,5 @@
+.env
+uploads/
+tryon_results/
+garment_cache/
+__pycache__/
