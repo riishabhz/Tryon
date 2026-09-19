@@ -226,13 +226,13 @@ async function runSearch() {
 
     const params = buildParams();
     try {
-        const api = new URLSearchParams({
+        const query = new URLSearchParams({
             q: params.get("q"),
             gender: state.gender,
             type: state.type,
             stores: selectedStores().join(","),
         });
-        const data = await api(`/api/search?${api}`).then((r) => r.json());
+        const data = await api(`/api/search?${query}`).then((r) => r.json());
         if (seq !== searchSeq) return;   // a newer search superseded this one
 
         // The query may have named a gender ("mens hoodie"): follow it.
