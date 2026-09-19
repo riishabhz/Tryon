@@ -1,0 +1,13 @@
+# Secrets — never commit API keys
+.env
+**/.env
+
+# Personal photos and generated images
+**/uploads/
+**/tryon_results/
+**/garment_cache/
+
+__pycache__/
+*.pyc
+.venv/
+venv/
