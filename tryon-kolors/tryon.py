@@ -24,7 +24,7 @@ import os
 import shutil
 
 from gradio_client import Client, handle_file
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 # Bump when the pipeline changes so earlier cached results are regenerated.
 CACHE_VERSION = "hf-v2"
@@ -149,16 +149,52 @@ def _composite(person_path, generated_path, preview_path, out_path):
     grey = [band.point(lambda v: 255 if 120 <= v <= 135 else 0)
             for band in preview.split()]
     mask = ImageChops.multiply(ImageChops.multiply(grey[0], grey[1]), grey[2])
-    # Drop stray grey pixels, then grow the area slightly to cover its edges.
-    mask = mask.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(11))
+    # Drop stray grey pixels. Don't grow the area: at this scale a face can be
+    # only ~40px wide and sits right against the edited block.
+    mask = mask.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+
+    _protect_head(mask)
 
     coverage = sum(mask.histogram()[128:]) / (mask.width * mask.height)
     if coverage < 0.01:
         generated.save(out_path)   # no usable mask: fall back to the full result
         return
     mask = mask.resize(size, Image.BILINEAR)
-    mask = mask.filter(ImageFilter.GaussianBlur(max(2, size[0] // 300)))
+    mask = mask.filter(ImageFilter.GaussianBlur(1))
     Image.composite(generated, original, mask).save(out_path)
+
+
+def _protect_head(mask):
+    """Keep the whole head (hair and jaw too) from the original photo.
+
+    IDM-VTON's edit block covers the hair and leaves only a face-shaped gap in
+    its top rows, so the re-drawn hair and jaw change how the person looks.
+    Find that gap (non-edited pixels with edited pixels on both sides) and
+    clear a larger oval around it.
+    """
+    core = mask.filter(ImageFilter.MinFilter(21)).getbbox()   # ignore grey specks
+    if not core:
+        return
+    bx0, by0, bx1, by1 = core
+    left, right = max(0, bx0 - 15), min(mask.width, bx1 + 15)
+    xs, ys = [], []
+    for y in range(max(0, by0 - 15), by0 + int((by1 - by0) * 0.3)):
+        row = [mask.getpixel((x, y)) > 127 for x in range(left, right)]
+        if True not in row:
+            continue
+        first, last = row.index(True), len(row) - 1 - row[::-1].index(True)
+        for i in range(first, last):
+            if not row[i]:
+                xs.append(left + i)
+                ys.append(y)
+    if len(xs) < 50:
+        return
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    w, h = x1 - x0, y1 - y0
+    if w > (bx1 - bx0) * 0.5:                  # too wide to be a face
+        return
+    ImageDraw.Draw(mask).ellipse(
+        (x0 - 0.35 * w, y0 - 0.6 * h, x1 + 0.35 * w, y1), fill=0)
 
 
 def _extract_path(value):

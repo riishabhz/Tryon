@@ -33,6 +33,12 @@ Also:
   quickly) → **IDM-VTON** → **CatVTON** → **Leffa**.
 - **The models need a clear, full-body photo.** Close-ups and selfies give poor
   results.
+- **They work at a fixed 768×1024 and re-draw the whole picture**, which on its
+  own changes small faces. To avoid that, the app pastes only the re-dressed
+  clothing back onto your original photo, keeping your face, hair, background
+  and photo size. This works when IDM-VTON handles the request (the usual
+  case); if a backup service is used instead, you get its full, unedited
+  output.
 - **Hugging Face doesn't publish the exact numbers** and changes them over time,
   so treat the figures above as a rough guide.
 - **The models are licensed for non-commercial use only.**
