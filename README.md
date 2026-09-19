@@ -9,6 +9,53 @@ is hosted anywhere.
 
 ---
 
+## See it in action
+
+Real results from the app's **Fit check** view: the shop's product photo on the
+left, and the same item tried on a real photo (the author's, on Regent Street) on
+the right.
+
+### Gemini edition
+
+| M&S Supersoft Quarter Zip Knitted Polo | Retro Colour Block Jacket |
+|---|---|
+| ![Gemini try-on: knitted polo](docs/images/gemini-knitted-polo.webp) | ![Gemini try-on: colour block jacket](docs/images/gemini-colour-block-jacket.webp) |
+
+### Free edition (Hugging Face)
+
+| M&S Supersoft Quarter Zip Knitted Polo | Men's Balnoon Organic Cotton Check Overshirt |
+|---|---|
+| ![Free try-on: knitted polo](docs/images/free-knitted-polo.webp) | ![Free try-on: check overshirt](docs/images/free-check-overshirt.webp) |
+
+**What the examples show:** both editions keep your face, the scene and your
+other clothes (the jeans and trainers are untouched). Gemini fits the garment
+closely to your body and pose. The free edition gets the colour and pattern
+right, but the fit is looser, bits of your original outfit can show through
+(see the cuffs on the polo), and it may change your arm position (the raised
+hand on the overshirt comes from the product photo).
+
+### How a try-on works
+
+1. **You upload one photo** of yourself, ideally full-body and standing. It's
+   saved on your computer and reused for every try-on.
+2. **You click "Try it on"** on any product in the search results.
+3. **The app picks the best garment picture.** Where the store has one, it uses
+   a photo of the garment on its own, with no model (M&S cut-outs, Zara
+   flat-lays), so the AI has no other person to copy.
+4. **Your photo and the garment go to the AI you chose:**
+   - **Gemini** is told to keep your face, body, pose, framing and background,
+     replace only that garment, and never copy the shop model or their
+     accessories. The output keeps your photo's shape.
+   - **The free models** re-dress the upper or lower body. The app then pastes
+     only the new clothing back onto your original photo, so your face, hair
+     and background stay exactly as they were (when IDM-VTON handles the
+     request, which is the usual case).
+5. **The result appears** next to the product photo, gets saved to "Fits you've
+   tried", and can be downloaded. Trying the same item again is instant and
+   free, because results are cached.
+
+---
+
 ## Two versions: pick one
 
 The website is the same in both. They differ only in the AI that does the
