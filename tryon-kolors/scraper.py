@@ -16,6 +16,7 @@ Results are cached per URL / query for CACHE_TTL seconds.
 """
 
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -39,6 +40,11 @@ STORES = {
     "hm": "H&M",
     "boohoo": "boohoo",
 }
+
+# Stores to switch off, e.g. DRIPLAB_DISABLED_STORES=zara on a hosted server
+# whose IP a store blocks.
+for _key in os.getenv("DRIPLAB_DISABLED_STORES", "").split(","):
+    STORES.pop(_key.strip(), None)
 
 GENDERS = ["women", "men"]
 

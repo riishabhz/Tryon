@@ -171,6 +171,11 @@ function setGender(gender) {
 async function loadStores() {
     const stores = await api("/api/stores").then((r) => r.json());
     state.allStores = stores;
+    const names = stores.map((s) => s.name);
+    const list = names.length > 1
+        ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join("");
+    document.querySelectorAll("[data-store-list]").forEach((el) => { el.textContent = list; });
+    document.querySelectorAll("[data-store-count]").forEach((el) => { el.textContent = names.length; });
     const wrap = $("#store-chips");
     wrap.innerHTML = "";
     for (const s of stores) {
