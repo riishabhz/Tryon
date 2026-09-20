@@ -14,116 +14,164 @@
 
 <header class="topbar">
     <div class="brand">Drip Lab<span class="brand-dot">.</span></div>
-    <div class="topbar-note"><span data-store-count>6</span> UK stores — live</div>
+    <nav class="topnav">
+        <button type="button" class="nav-link" id="nav-saved">Saved <span class="nav-count" id="saved-count" hidden>0</span></button>
+        <button type="button" class="nav-link" id="nav-how">How try-on works</button>
+        <button type="button" class="photo-pill" id="nav-photo">
+            <span class="avatar" id="nav-avatar">You</span> My photo
+        </button>
+    </nav>
 </header>
 
 <section class="hero">
-    <p class="overline">AI try-on · zero guesswork</p>
     <h1>Cook up <em>your next fit.</em></h1>
-    <p class="sub">Search <span data-store-list>Zara, H&amp;M, boohoo, M&amp;S, River Island and Seasalt</span>
-    live, then see the drip on a real photo before you cop it.</p>
+    <p class="sub">Search <span data-store-count>5</span> UK stores at once, then try it
+    on your own photo before you buy.</p>
 
-    <form id="search-form" class="search-row" autocomplete="off">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="search-input" type="search"
-               placeholder="Try “black t-shirt”, “linen shirt” or “floral dress”…" />
-        <button type="submit" id="search-btn">Search</button>
-    </form>
-
-    <div class="gender-toggle" id="gender-toggle" role="group" aria-label="Shop for">
-        <button type="button" data-gender="women" class="active">Women</button>
-        <button type="button" data-gender="men">Men</button>
-    </div>
-
-    <div class="filter-bar">
-        <div class="type-scroller">
-            <div class="chip-group" id="type-chips"><!-- populated from /api/types --></div>
-        </div>
-        <button type="button" class="filters-btn" id="filters-btn" aria-expanded="false" aria-controls="filters-panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-            Filters <span class="filters-count" id="filters-count" hidden></span>
+    <div class="search-line">
+        <form id="search-form" class="search-row" autocomplete="off">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="search-input" type="search" placeholder="Try “linen shirt”, “black tee” or “floral dress”…" />
+            <button type="submit" id="search-btn">Search</button>
+        </form>
+        <button type="button" class="photo-cta" id="photo-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M9 5l1-2h4l1 2"/></svg>
+            <span id="photo-cta-text">Try on with your photo</span>
         </button>
     </div>
 
-    <div class="filters-panel" id="filters-panel" hidden>
-        <div class="filters-section">
-            <h3 class="panel-title">Stores</h3>
-            <div class="chip-group" id="store-chips"><!-- populated from /api/stores --></div>
+    <p class="trending">Trending:
+        <button type="button" data-q="linen shirt">linen shirt</button>
+        <button type="button" data-q="black tee">black tee</button>
+        <button type="button" data-q="wide leg jeans">wide-leg jeans</button>
+        <button type="button" data-q="quarter zip knit">quarter-zip knit</button>
+    </p>
+</section>
+
+<section class="controls">
+    <div class="controls-left">
+        <div class="gender-toggle" id="gender-toggle" role="group" aria-label="Shop for">
+            <button type="button" data-gender="men">Men</button>
+            <button type="button" data-gender="women" class="active">Women</button>
         </div>
-        <div class="filters-section">
-            <h3 class="panel-title">Max price</h3>
-            <div class="chip-group" id="price-chips">
-                <button type="button" class="chip active" data-price="">Any</button>
-                <button type="button" class="chip" data-price="15">Under £15</button>
-                <button type="button" class="chip" data-price="25">Under £25</button>
-                <button type="button" class="chip" data-price="40">Under £40</button>
-                <button type="button" class="chip" data-price="60">Under £60</button>
+
+        <div class="dropdown" id="dd-stores">
+            <button type="button" class="dd-btn" aria-expanded="false">Stores <span class="caret">▾</span></button>
+            <div class="dd-panel" hidden>
+                <div class="chip-group" id="store-chips"><!-- from /api/stores --></div>
+                <div class="dd-actions">
+                    <button type="button" class="ghost-btn dd-all">All stores</button>
+                    <button type="button" class="primary-btn dd-done">Done</button>
+                </div>
             </div>
         </div>
-        <div class="filters-section">
-            <h3 class="panel-title">Sort</h3>
-            <div class="chip-group" id="sort-chips">
-                <button type="button" class="chip active" data-sort="">Recommended</button>
-                <button type="button" class="chip" data-sort="price-asc">Price: low to high</button>
-                <button type="button" class="chip" data-sort="price-desc">Price: high to low</button>
+
+        <div class="dropdown" id="dd-price">
+            <button type="button" class="dd-btn" aria-expanded="false">Price <span class="caret">▾</span></button>
+            <div class="dd-panel" hidden>
+                <div class="chip-group" id="price-chips">
+                    <button type="button" class="chip active" data-price="">Any</button>
+                    <button type="button" class="chip" data-price="15">Under £15</button>
+                    <button type="button" class="chip" data-price="25">Under £25</button>
+                    <button type="button" class="chip" data-price="40">Under £40</button>
+                    <button type="button" class="chip" data-price="60">Under £60</button>
+                </div>
             </div>
         </div>
-        <div class="filters-actions">
-            <button type="button" class="ghost-btn" id="filters-reset">Reset</button>
-            <button type="button" class="primary-btn" id="filters-done">Show results</button>
-        </div>
+    </div>
+
+    <div class="controls-right" id="active-filters" hidden>
+        <span class="active-label">Active:</span>
+        <span id="active-pills"></span>
+        <button type="button" class="link-btn" id="clear-filters">Clear</button>
     </div>
 </section>
 
-<div class="layout">
-    <aside class="sidebar">
-        <div class="panel photo-card">
-            <h3 class="panel-title">Try-on photo</h3>
-            <div class="photo-drop" id="photo-drop">
-                <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" hidden>
-                <div class="photo-placeholder" id="photo-placeholder">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="ph-icon"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M9 5l1-2h4l1 2"/></svg>
-                    <strong>Add a photo to unlock try-on</strong>
-                    <span class="hint">Full-body, standing, facing the camera — a mirror selfie is perfect.<br>Upload once; it's remembered. Click or drag &amp; drop.</span>
-                </div>
-                <img id="photo-preview" class="photo-preview" hidden alt="Model photo">
-            </div>
-            <div class="photo-actions">
-                <button id="photo-change" class="ghost-btn" hidden>Change photo</button>
-                <span id="photo-status" class="photo-status"></span>
-            </div>
-        </div>
-
-    </aside>
-
-    <main class="main">
-        <section id="gallery-section" class="gallery-section" hidden>
-            <div class="section-head">
-                <h2 class="section-title">Fits you've tried 🔥</h2>
-                <button type="button" class="ghost-btn clear-btn" id="gallery-clear">Clear all</button>
-            </div>
-            <div id="gallery-strip" class="gallery-strip"></div>
-        </section>
-
-        <div id="status-bar" class="status-bar"></div>
-        <div id="results-grid" class="grid"></div>
-        <div id="empty-state" class="empty-state">
-            <div class="empty-mark">✳</div>
-            <h2>Drop a search</h2>
-            <p>Type what you're feeling — results pull up live from<br><span data-store-list>Zara, H&amp;M, boohoo, M&amp;S, River Island and Seasalt</span>.</p>
-        </div>
-    </main>
+<div class="type-row">
+    <div class="type-scroller">
+        <div class="chip-group" id="type-chips"><!-- from /api/types --></div>
+    </div>
+    <button type="button" class="scroll-more" id="type-scroll-more" aria-label="More types">›</button>
 </div>
+
+<main class="main">
+    <section id="gallery-section" class="gallery-section" hidden>
+        <div class="section-head">
+            <h2 class="section-title">Fits you've tried 🔥</h2>
+            <button type="button" class="ghost-btn clear-btn" id="gallery-clear">Clear all</button>
+        </div>
+        <div id="gallery-strip" class="gallery-strip"></div>
+    </section>
+
+    <div class="results-head">
+        <div id="status-bar" class="status-bar"></div>
+        <div class="dropdown sort-dd" id="dd-sort">
+            <button type="button" class="dd-btn plain" aria-expanded="false">Sort: <strong id="sort-label">Recommended</strong> <span class="caret">▾</span></button>
+            <div class="dd-panel right" hidden>
+                <div class="chip-group" id="sort-chips">
+                    <button type="button" class="chip active" data-sort="">Recommended</button>
+                    <button type="button" class="chip" data-sort="price-asc">Price: low to high</button>
+                    <button type="button" class="chip" data-sort="price-desc">Price: high to low</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="results-grid" class="grid"></div>
+
+    <div id="empty-state" class="empty-state">
+        <div class="empty-mark">✳</div>
+        <h2>Drop a search</h2>
+        <p>Type what you're feeling — results pull up live from<br><span data-store-list>M&amp;S, River Island, Seasalt, H&amp;M and boohoo</span>.</p>
+    </div>
+</main>
 
 <footer class="footer">
     <span id="privacy-note">Your photo is used only to create your own try-ons.</span>
     <span class="footer-credit">Built by Rishabh Bhardwaj · personal, non-commercial use</span>
 </footer>
 
-<!-- Try-on modal -->
+<!-- Photo modal -->
+<div id="photo-modal" class="modal" hidden>
+    <div class="modal-box narrow">
+        <button class="modal-close" data-close aria-label="Close">✕</button>
+        <p class="overline">Your try-on photo</p>
+        <h3>Upload once, try on anything</h3>
+        <div class="photo-drop" id="photo-drop">
+            <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" hidden>
+            <div class="photo-placeholder" id="photo-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="ph-icon"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M9 5l1-2h4l1 2"/></svg>
+                <strong>Add a photo to unlock try-on</strong>
+                <span class="hint">Full-body, standing, facing the camera — a mirror selfie is perfect.<br>Click or drag &amp; drop.</span>
+            </div>
+            <img id="photo-preview" class="photo-preview" hidden alt="Your photo">
+        </div>
+        <div class="photo-actions">
+            <button id="photo-change" class="ghost-btn" hidden>Change photo</button>
+            <span id="photo-status" class="photo-status"></span>
+        </div>
+    </div>
+</div>
+
+<!-- How it works modal -->
+<div id="how-modal" class="modal" hidden>
+    <div class="modal-box narrow">
+        <button class="modal-close" data-close aria-label="Close">✕</button>
+        <p class="overline">How try-on works</p>
+        <h3>Three steps</h3>
+        <ol class="how-list">
+            <li><strong>Add a photo.</strong> Full-body, standing, facing the camera. It's saved just for you and reused for every try-on.</li>
+            <li><strong>Search and pick a piece.</strong> Results come live from the stores, with the garment-only picture used where a store has one.</li>
+            <li><strong>Press “Try it on”.</strong> An AI puts that garment on your photo, keeping your face, pose and background. Results collect in “Fits you've tried”.</li>
+        </ol>
+        <p class="how-note" id="how-privacy">Your photo is used only to create your own try-ons.</p>
+    </div>
+</div>
+
+<!-- Try-on result modal -->
 <div id="modal" class="modal" hidden>
     <div class="modal-box">
-        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+        <button class="modal-close" id="modal-close" data-close aria-label="Close">✕</button>
         <p class="overline">Fit check</p>
         <h3 id="modal-title">Try-on result</h3>
         <div class="modal-images">

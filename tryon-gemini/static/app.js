@@ -1,9 +1,8 @@
 /* Drip Lab — built by Rishabh Bhardwaj.
    Personal, non-commercial use only. See LICENSE. */
 
-/* Drip Lab — dynamic search + virtual try-on frontend */
-
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 const state = {
     gender: "women",
@@ -14,11 +13,10 @@ const state = {
     maxPrice: "",        // "" = any
     sort: "",            // "", "price-asc", "price-desc"
     lastData: null,      // last search response, re-rendered on price/sort change
-    storesDirty: false,  // store chips changed while the Filters panel was open
+    storesDirty: false,  // store chips changed while the Stores panel was open
+    savedOnly: false,    // showing the Saved view
 };
 
-// Search state lives in the URL (?q=&g=&type=&stores=) and the last results
-// in sessionStorage, so returning from a shop page restores everything.
 const STORE_PREFIX = "driplab:";
 
 function storage(action, key, value) {
@@ -42,7 +40,7 @@ const SESSION_ID = (() => {
         }
         return sid;
     } catch {
-        return fresh();   // storage blocked: private for this page load only
+        return fresh();
     }
 })();
 
@@ -53,13 +51,71 @@ function api(url, options = {}) {
     });
 }
 
+/* ---------------- Saved items (this browser only) ---------------- */
+
+function loadSaved() {
+    try {
+        return JSON.parse(localStorage.getItem("driplab:saved") || "[]");
+    } catch {
+        return [];
+    }
+}
+
+function storeSaved(items) {
+    try {
+        localStorage.setItem("driplab:saved", JSON.stringify(items.slice(0, 200)));
+    } catch { /* ignore */ }
+    const count = items.length;
+    const badge = $("#saved-count");
+    badge.textContent = count;
+    badge.hidden = count === 0;
+}
+
+function isSaved(product) {
+    return loadSaved().some((p) => p.url === product.url);
+}
+
+function toggleSaved(product) {
+    const items = loadSaved();
+    const without = items.filter((p) => p.url !== product.url);
+    const nowSaved = without.length === items.length;
+    storeSaved(nowSaved ? [product, ...items] : without);
+    if (state.savedOnly) showSaved();
+    return nowSaved;
+}
+
+function showSaved() {
+    state.savedOnly = true;
+    $("#nav-saved").classList.add("active");
+    const items = loadSaved();
+    const grid = $("#results-grid");
+    grid.innerHTML = "";
+    $("#status-bar").innerHTML = items.length
+        ? `<strong>${items.length} saved item${items.length === 1 ? "" : "s"}</strong>`
+        : "";
+    $("#empty-state").hidden = items.length > 0;
+    if (!items.length) {
+        $("#empty-state").querySelector("h2").textContent = "Nothing saved yet";
+        $("#empty-state").querySelector("p").innerHTML =
+            "Tap the ♡ on any item to keep it here.";
+    }
+    items.forEach((p) => grid.appendChild(productCard(p)));
+}
+
+function exitSaved() {
+    if (!state.savedOnly) return;
+    state.savedOnly = false;
+    $("#nav-saved").classList.remove("active");
+    $("#empty-state").querySelector("h2").textContent = "Drop a search";
+}
+
 /* ---------------- Init ---------------- */
 
 async function init() {
     setupPhotoUpload();
-    setupModal();
+    setupModals();
     setupControls();
-    $("#gallery-clear").addEventListener("click", clearGallery);
+    storeSaved(loadSaved());
 
     await Promise.all([loadStores(), refreshPhoto(), loadGallery(),
                        loadPrivacyNote()]);
@@ -68,6 +124,7 @@ async function init() {
     applyParams(params);
     await loadTypes(state.gender);
     markActiveType();
+    renderActiveFilters();
 
     if (params.has("q") || params.has("g")) {
         const key = searchKey(params);
@@ -84,7 +141,6 @@ async function init() {
 function currentParams() {
     const fromUrl = new URLSearchParams(location.search);
     if ([...fromUrl.keys()].length) return fromUrl;
-    // Opened fresh (e.g. address bar): fall back to this tab's last search.
     return new URLSearchParams(storage("get", "last") || "");
 }
 
@@ -96,10 +152,11 @@ function applyParams(params) {
     state.sort = params.get("sort") || "";
     markChoice("#price-chips", "price", state.maxPrice);
     markChoice("#sort-chips", "sort", state.sort);
+    updateSortLabel();
     const stores = params.get("stores");
     if (stores) {
         const wanted = new Set(stores.split(","));
-        document.querySelectorAll("#store-chips .chip").forEach((c) =>
+        $$("#store-chips .chip").forEach((c) =>
             c.classList.toggle("active", wanted.has(c.dataset.store)));
     }
 }
@@ -128,6 +185,16 @@ function setupControls() {
     $("#search-form").addEventListener("submit", (e) => {
         e.preventDefault();
         state.type = "auto";   // a typed query decides its own type
+        exitSaved();
+        runSearch();
+    });
+
+    $(".trending").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-q]");
+        if (!btn) return;
+        $("#search-input").value = btn.dataset.q;
+        state.type = "auto";
+        exitSaved();
         runSearch();
     });
 
@@ -137,6 +204,7 @@ function setupControls() {
         setGender(btn.dataset.gender);
         await loadTypes(state.gender);
         markActiveType();
+        exitSaved();
         runSearch();
     });
 
@@ -145,7 +213,14 @@ function setupControls() {
         if (!btn) return;
         state.type = btn.dataset.type;
         markActiveType();
+        exitSaved();
         runSearch();
+    });
+
+    $("#type-scroll-more").addEventListener("click", () => {
+        const scroller = $(".type-scroller");
+        const atEnd = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 8;
+        scroller.scrollBy({ left: atEnd ? -scroller.clientWidth : scroller.clientWidth * 0.8 });
     });
 
     $("#store-chips").addEventListener("click", (e) => {
@@ -153,10 +228,100 @@ function setupControls() {
         if (!btn) return;
         btn.classList.toggle("active");
         state.storesDirty = true;
-        updateFilterCount();
+        renderActiveFilters();
     });
 
-    setupFilters();
+    $("#price-chips").addEventListener("click", (e) => {
+        const chip = e.target.closest(".chip");
+        if (!chip) return;
+        state.maxPrice = chip.dataset.price;
+        markChoice("#price-chips", "price", state.maxPrice);
+        closeDropdowns();
+        refilter();
+    });
+
+    $("#sort-chips").addEventListener("click", (e) => {
+        const chip = e.target.closest(".chip");
+        if (!chip) return;
+        state.sort = chip.dataset.sort;
+        markChoice("#sort-chips", "sort", state.sort);
+        updateSortLabel();
+        closeDropdowns();
+        refilter();
+    });
+
+    $("#dd-stores").querySelector(".dd-all").addEventListener("click", () => {
+        $$("#store-chips .chip").forEach((c) => c.classList.add("active"));
+        state.storesDirty = true;
+        renderActiveFilters();
+    });
+    $("#dd-stores").querySelector(".dd-done").addEventListener("click", closeDropdowns);
+
+    $("#clear-filters").addEventListener("click", () => {
+        state.maxPrice = "";
+        state.sort = "";
+        markChoice("#price-chips", "price", "");
+        markChoice("#sort-chips", "sort", "");
+        updateSortLabel();
+        const chips = $$("#store-chips .chip");
+        if (chips.some((c) => !c.classList.contains("active"))) state.storesDirty = true;
+        chips.forEach((c) => c.classList.add("active"));
+        applyStoreChange();
+        refilter();
+    });
+
+    $("#active-pills").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-remove]");
+        if (!btn) return;
+        if (btn.dataset.remove === "price") {
+            state.maxPrice = "";
+            markChoice("#price-chips", "price", "");
+            refilter();
+        } else if (btn.dataset.remove === "sort") {
+            state.sort = "";
+            markChoice("#sort-chips", "sort", "");
+            updateSortLabel();
+            refilter();
+        } else {
+            $$("#store-chips .chip").forEach((c) => c.classList.add("active"));
+            state.storesDirty = true;
+            applyStoreChange();
+        }
+    });
+
+    // Dropdown open/close
+    $$(".dropdown").forEach((dd) => {
+        const btn = dd.querySelector(".dd-btn");
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const panel = dd.querySelector(".dd-panel");
+            const wasOpen = !panel.hidden;
+            closeDropdowns();
+            if (!wasOpen) {
+                panel.hidden = false;
+                btn.setAttribute("aria-expanded", "true");
+            }
+        });
+    });
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest(".dropdown")) closeDropdowns();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeDropdowns();
+    });
+
+    // Top navigation
+    $("#nav-saved").addEventListener("click", () => {
+        if (state.savedOnly) {
+            exitSaved();
+            state.lastData ? renderResults(state.lastData) : ($("#empty-state").hidden = false);
+        } else {
+            showSaved();
+        }
+    });
+    $("#nav-how").addEventListener("click", () => openModal("#how-modal"));
+    $("#nav-photo").addEventListener("click", () => openModal("#photo-modal"));
+    $("#photo-trigger").addEventListener("click", () => openModal("#photo-modal"));
 
     let scrollTimer;
     window.addEventListener("scroll", () => {
@@ -166,24 +331,62 @@ function setupControls() {
     window.addEventListener("pagehide", saveScroll);
 }
 
+function closeDropdowns() {
+    $$(".dropdown").forEach((dd) => {
+        dd.querySelector(".dd-panel").hidden = true;
+        dd.querySelector(".dd-btn").setAttribute("aria-expanded", "false");
+    });
+    applyStoreChange();
+}
+
+function applyStoreChange() {
+    if (!state.storesDirty) return;
+    state.storesDirty = false;
+    renderActiveFilters();
+    if (state.hasSearched) {
+        exitSaved();
+        runSearch();
+    }
+}
+
 function setGender(gender) {
     state.gender = gender === "men" ? "men" : "women";
-    document.querySelectorAll("#gender-toggle button").forEach((b) =>
+    $$("#gender-toggle button").forEach((b) =>
         b.classList.toggle("active", b.dataset.gender === state.gender));
 }
 
-// The page must not claim more than it can: a hosted copy keeps photos on
-// its server for a day, a local copy keeps them on your own computer.
+function updateSortLabel() {
+    const labels = { "": "Recommended", "price-asc": "Price: low to high",
+                     "price-desc": "Price: high to low" };
+    $("#sort-label").textContent = labels[state.sort] || "Recommended";
+}
+
+function renderActiveFilters() {
+    const pills = [];
+    const stores = selectedStores();
+    if (state.allStores.length && stores.length !== state.allStores.length) {
+        const names = state.allStores.filter((s) => stores.includes(s.key)).map((s) => s.name);
+        pills.push({ key: "stores", label: names.join(", ") || "No stores" });
+    }
+    if (state.maxPrice) pills.push({ key: "price", label: `Under £${state.maxPrice}` });
+    if (state.sort) pills.push({ key: "sort", label: $("#sort-label").textContent });
+
+    $("#active-pills").innerHTML = pills.map((p) =>
+        `<span class="active-pill">${escapeHtml(p.label)}<button data-remove="${p.key}" aria-label="Remove filter">✕</button></span>`
+    ).join("");
+    $("#active-filters").hidden = pills.length === 0;
+}
+
 async function loadPrivacyNote() {
     const note = $("#privacy-note");
     try {
         const cfg = await api("/api/config").then((r) => r.json());
-        note.textContent = cfg.hosted
+        const text = cfg.hosted
             ? `Your photo is private to this browser, used only to create your own try-ons, and deleted automatically after ${cfg.photo_days === 1 ? "24 hours" : `${cfg.photo_days} days`}.`
             : "Your photo never leaves your computer, except when it is sent to the try-on AI.";
-    } catch {
-        note.textContent = "Your photo is used only to create your own try-ons.";
-    }
+        note.textContent = text;
+        $("#how-privacy").textContent = text;
+    } catch { /* keep the neutral default */ }
 }
 
 async function loadStores() {
@@ -192,12 +395,13 @@ async function loadStores() {
     const names = stores.map((s) => s.name);
     const list = names.length > 1
         ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join("");
-    document.querySelectorAll("[data-store-list]").forEach((el) => { el.textContent = list; });
-    document.querySelectorAll("[data-store-count]").forEach((el) => { el.textContent = names.length; });
+    $$("[data-store-list]").forEach((el) => { el.textContent = list; });
+    $$("[data-store-count]").forEach((el) => { el.textContent = names.length; });
     const wrap = $("#store-chips");
     wrap.innerHTML = "";
     for (const s of stores) {
         const btn = document.createElement("button");
+        btn.type = "button";
         btn.className = "chip active";
         btn.textContent = s.name;
         btn.dataset.store = s.key;
@@ -209,8 +413,9 @@ async function loadTypes(gender) {
     const types = await api(`/api/types?gender=${gender}`).then((r) => r.json());
     const wrap = $("#type-chips");
     wrap.innerHTML = "";
-    for (const t of [{ key: "auto", label: "Auto" }, ...types]) {
+    for (const t of [{ key: "auto", label: "All" }, ...types]) {
         const btn = document.createElement("button");
+        btn.type = "button";
         btn.className = "chip";
         btn.textContent = t.label;
         btn.dataset.type = t.key;
@@ -221,13 +426,17 @@ async function loadTypes(gender) {
 
 function markActiveType(detected) {
     const active = state.type !== "auto" ? state.type : (detected || "auto");
-    document.querySelectorAll("#type-chips .chip").forEach((c) =>
+    $$("#type-chips .chip").forEach((c) =>
         c.classList.toggle("active", c.dataset.type === active));
 }
 
+function markChoice(groupSel, attr, value) {
+    $$(`${groupSel} .chip`).forEach((c) =>
+        c.classList.toggle("active", (c.dataset[attr] || "") === value));
+}
+
 function selectedStores() {
-    const active = [...document.querySelectorAll("#store-chips .chip.active")]
-        .map((b) => b.dataset.store);
+    const active = $$("#store-chips .chip.active").map((b) => b.dataset.store);
     return active.length ? active : state.allStores.map((s) => s.key);
 }
 
@@ -244,7 +453,7 @@ async function runSearch() {
     state.hasSearched = true;
     $("#empty-state").hidden = true;
     btn.disabled = true;
-    status.textContent = "Searching retailers live…";
+    status.textContent = "Searching stores live…";
     grid.innerHTML = skeletonCards(8);
 
     const params = buildParams();
@@ -298,19 +507,21 @@ function renderResults(data) {
     const status = $("#status-bar");
     state.hasSearched = true;
     state.lastData = data;
+    exitSaved();
     grid.innerHTML = "";
     markActiveType(data.type);
+    renderActiveFilters();
 
     const products = applyPriceAndSort(data.products);
     const hidden = data.products.length - products.length;
 
-    const what = data.type_label || "items";
-    const who = data.gender === "men" ? "Men's" : "Women's";
-    let msg = `${products.length} ${who} ${what.toLowerCase()} from ${data.stores_searched.join(", ")}`;
+    let msg = `<strong>${products.length} result${products.length === 1 ? "" : "s"}</strong>`;
+    if (data.query) msg += ` for “${escapeHtml(data.query)}”`;
+    else msg += ` · ${data.gender === "men" ? "Men's" : "Women's"} ${(data.type_label || "picks").toLowerCase()}`;
     if (hidden > 0) msg += ` <span class="note">(${hidden} over £${state.maxPrice} hidden)</span>`;
     if (data.note) msg = `<span class="note">${escapeHtml(data.note)}</span>`;
     if (data.query && !data.query_matched) {
-        msg += ` — <span class="warn">no exact match for “${escapeHtml(data.query)}”, showing everything</span>`;
+        msg += ` <span class="warn">— no exact match, showing everything</span>`;
     }
     if (data.errors && data.errors.length) {
         msg += ` <span class="warn">(${data.errors.map(escapeHtml).join("; ")})</span>`;
@@ -318,9 +529,7 @@ function renderResults(data) {
     status.innerHTML = msg;
 
     $("#empty-state").hidden = products.length > 0;
-    for (const p of products) {
-        grid.appendChild(productCard(p));
-    }
+    for (const p of products) grid.appendChild(productCard(p));
 }
 
 function priceOf(p) {
@@ -349,72 +558,10 @@ function applyPriceAndSort(products) {
     return list;
 }
 
-/* ---------------- Filters panel ---------------- */
-
-function setupFilters() {
-    const panel = $("#filters-panel");
-    const btn = $("#filters-btn");
-
-    btn.addEventListener("click", () => (panel.hidden ? openFilters() : closeFilters()));
-    $("#filters-done").addEventListener("click", closeFilters);
-
-    $("#price-chips").addEventListener("click", (e) => {
-        const chip = e.target.closest(".chip");
-        if (!chip) return;
-        state.maxPrice = chip.dataset.price;
-        markChoice("#price-chips", "price", state.maxPrice);
-        refilter();
-    });
-    $("#sort-chips").addEventListener("click", (e) => {
-        const chip = e.target.closest(".chip");
-        if (!chip) return;
-        state.sort = chip.dataset.sort;
-        markChoice("#sort-chips", "sort", state.sort);
-        refilter();
-    });
-    $("#filters-reset").addEventListener("click", () => {
-        state.maxPrice = "";
-        state.sort = "";
-        markChoice("#price-chips", "price", "");
-        markChoice("#sort-chips", "sort", "");
-        const chips = [...document.querySelectorAll("#store-chips .chip")];
-        if (chips.some((c) => !c.classList.contains("active"))) state.storesDirty = true;
-        chips.forEach((c) => c.classList.add("active"));
-        refilter();
-    });
-
-    // Click outside or Escape closes the panel.
-    document.addEventListener("click", (e) => {
-        if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) closeFilters();
-    });
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !panel.hidden) closeFilters();
-    });
-    updateFilterCount();
-}
-
-function openFilters() {
-    $("#filters-panel").hidden = false;
-    $("#filters-btn").setAttribute("aria-expanded", "true");
-}
-
-function closeFilters() {
-    $("#filters-panel").hidden = true;
-    $("#filters-btn").setAttribute("aria-expanded", "false");
-    if (state.storesDirty) {
-        state.storesDirty = false;
-        if (state.hasSearched) runSearch();
-    }
-}
-
-function markChoice(groupSel, attr, value) {
-    document.querySelectorAll(`${groupSel} .chip`).forEach((c) =>
-        c.classList.toggle("active", (c.dataset[attr] || "") === value));
-}
-
 // Price/sort changed: re-render the loaded results and update the URL.
 function refilter() {
-    updateFilterCount();
+    renderActiveFilters();
+    if (state.savedOnly) return showSaved();
     if (!state.lastData) return;
     const params = buildParams();
     history.replaceState(null, "", `?${params}`);
@@ -422,25 +569,17 @@ function refilter() {
     renderResults(state.lastData);
 }
 
-function updateFilterCount() {
-    const storesOff = [...document.querySelectorAll("#store-chips .chip")]
-        .some((c) => !c.classList.contains("active"));
-    const n = (storesOff ? 1 : 0) + (state.maxPrice ? 1 : 0) + (state.sort ? 1 : 0);
-    const badge = $("#filters-count");
-    badge.textContent = n;
-    badge.hidden = n === 0;
-}
-
 function productCard(p) {
-    const card = document.createElement("div");
+    const card = document.createElement("article");
     card.className = "card";
 
-    const imgWrap = document.createElement("a");
-    imgWrap.className = "card-img";
-    imgWrap.href = p.url;
-    imgWrap.target = "_blank";
-    imgWrap.rel = "noopener";
-    imgWrap.title = "Open product page";
+    const media = document.createElement("a");
+    media.className = "card-img";
+    media.href = p.url;
+    media.target = "_blank";
+    media.rel = "noopener";
+    media.title = "Open product page";
+
     if (p.image) {
         const img = document.createElement("img");
         img.loading = "lazy";
@@ -448,72 +587,83 @@ function productCard(p) {
         img.src = `/api/image-proxy?url=${encodeURIComponent(p.image)}`;
         img.onerror = () => {
             img.remove();
-            imgWrap.insertAdjacentHTML("beforeend", '<div class="no-img">📷</div>');
+            media.insertAdjacentHTML("afterbegin", '<div class="no-img">📷</div>');
         };
-        imgWrap.appendChild(img);
+        media.appendChild(img);
     } else {
-        imgWrap.insertAdjacentHTML("beforeend", '<div class="no-img">📷</div>');
+        media.insertAdjacentHTML("afterbegin", '<div class="no-img">📷</div>');
     }
 
-    const body = document.createElement("div");
-    body.className = "card-body";
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = p.store;
 
-    const name = document.createElement("div");
-    name.className = "card-name";
-    name.textContent = p.name;
-
-    const meta = document.createElement("div");
-    meta.className = "card-meta";
-    meta.innerHTML = `
-        <span class="store-badge store-${p.store_key}">${escapeHtml(p.store)}</span>
-        ${p.price ? `<span class="price-badge">${escapeHtml(p.price)}</span>` : ""}
-    `;
-
-    const actions = document.createElement("div");
-    actions.className = "card-actions";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "save-btn" + (isSaved(p) ? " saved" : "");
+    save.textContent = isSaved(p) ? "♥" : "♡";
+    save.title = "Save for later";
+    save.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = toggleSaved(p);
+        save.classList.toggle("saved", now);
+        save.textContent = now ? "♥" : "♡";
+    });
 
     const tryBtn = document.createElement("button");
-    tryBtn.className = "tryon-btn";
+    tryBtn.type = "button";
+    tryBtn.className = "card-tryon";
     tryBtn.textContent = "Try it on";
     if (!p.image) {
         tryBtn.disabled = true;
         tryBtn.title = "No product image available";
     } else if (!state.photoExists) {
         tryBtn.disabled = true;
-        tryBtn.title = "Add a photo first (left panel)";
+        tryBtn.title = "Add a photo first";
     }
-    tryBtn.addEventListener("click", () => startTryOn(p, tryBtn, card));
+    tryBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!state.photoExists) return openModal("#photo-modal");
+        startTryOn(p, tryBtn, card);
+    });
 
-    const viewBtn = document.createElement("a");
-    viewBtn.className = "view-btn";
-    viewBtn.textContent = "↗";
-    viewBtn.title = "Open product page";
-    viewBtn.href = p.url;
-    viewBtn.target = "_blank";
-    viewBtn.rel = "noopener";
+    media.append(badge, save, tryBtn);
 
-    actions.append(tryBtn, viewBtn);
-    body.append(name, meta, actions);
-    card.append(imgWrap, body);
+    const body = document.createElement("div");
+    body.className = "card-body";
+    const line = document.createElement("div");
+    line.className = "card-line";
+    const name = document.createElement("div");
+    name.className = "card-name";
+    name.textContent = p.name;
+    const price = document.createElement("div");
+    price.className = "card-price";
+    price.textContent = p.price || "";
+    line.append(name, price);
+    body.appendChild(line);
+    if (p.colour) {
+        const sub = document.createElement("div");
+        sub.className = "card-sub";
+        sub.textContent = p.colour;
+        body.appendChild(sub);
+    }
+
+    card.append(media, body);
     return card;
 }
 
 function skeletonCards(n) {
     let html = "";
     for (let i = 0; i < n; i++) {
-        html += `
-        <div class="card skeleton">
-            <div class="card-img"></div>
-            <div class="card-body">
-                <div class="sk-line"></div>
-                <div class="sk-line short"></div>
-            </div>
-        </div>`;
+        html += `<div class="card skeleton"><div class="card-img"></div>
+        <div class="card-body"><div class="sk-line"></div><div class="sk-line short"></div></div></div>`;
     }
     return html;
 }
 
-/* ---------------- Photo upload ---------------- */
+/* ---------------- Photo ---------------- */
 
 function setupPhotoUpload() {
     const drop = $("#photo-drop");
@@ -524,23 +674,14 @@ function setupPhotoUpload() {
         e.stopPropagation();
         input.click();
     });
-
     input.addEventListener("change", () => {
         if (input.files.length) uploadPhoto(input.files[0]);
     });
 
     ["dragover", "dragenter"].forEach((ev) =>
-        drop.addEventListener(ev, (e) => {
-            e.preventDefault();
-            drop.classList.add("dragover");
-        })
-    );
+        drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("dragover"); }));
     ["dragleave", "drop"].forEach((ev) =>
-        drop.addEventListener(ev, (e) => {
-            e.preventDefault();
-            drop.classList.remove("dragover");
-        })
-    );
+        drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("dragover"); }));
     drop.addEventListener("drop", (e) => {
         if (e.dataTransfer.files.length) uploadPhoto(e.dataTransfer.files[0]);
     });
@@ -554,12 +695,8 @@ async function uploadPhoto(file) {
     form.append("file", file);
     try {
         const res = await api("/api/photo", { method: "POST", body: form });
-        if (!res.ok) {
-            const detail = (await res.json()).detail || res.statusText;
-            throw new Error(detail);
-        }
-        const data = await res.json();
-        showPhoto(data.url);
+        if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+        showPhoto((await res.json()).url);
     } catch (err) {
         status.textContent = `Upload failed: ${err.message}`;
     }
@@ -580,8 +717,11 @@ function showPhoto(url) {
     img.hidden = false;
     $("#photo-placeholder").hidden = true;
     $("#photo-change").hidden = false;
-    document.querySelectorAll(".tryon-btn").forEach((b) => {
-        if (b.title.startsWith("Add a photo")) {
+    $("#photo-cta-text").textContent = "Your photo is ready";
+    $("#photo-trigger").classList.add("ready");
+    $("#nav-avatar").innerHTML = `<img src="${url}" alt="">`;
+    $$(".card-tryon").forEach((b) => {
+        if (b.title === "Add a photo first") {
             b.disabled = false;
             b.title = "";
         }
@@ -589,11 +729,10 @@ function showPhoto(url) {
 }
 
 // Try-on can only dress the body it can see. A landscape shot is almost
-// always a webcam/close-up, which makes the AI borrow the product model's body.
+// always a webcam/close-up, which makes the AI borrow the model's body.
 function showPhotoAdvice(img) {
     const status = $("#photo-status");
-    const landscape = img.naturalWidth > img.naturalHeight * 1.05;
-    if (landscape) {
+    if (img.naturalWidth > img.naturalHeight * 1.05) {
         status.innerHTML = "Photo saved, but it looks like a close-up. For a real " +
             "try-on use a <strong>full-body, portrait</strong> photo — a mirror selfie works great.";
         status.className = "photo-status warn";
@@ -623,12 +762,8 @@ async function startTryOn(product, btn, card) {
                 category: product.category || "",
             }),
         });
-        if (!res.ok) {
-            const detail = (await res.json()).detail || res.statusText;
-            throw new Error(detail);
-        }
-        const { job_id } = await res.json();
-        await pollJob(job_id, product, btn, card);
+        if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+        await pollJob((await res.json()).job_id, product, btn, card);
     } catch (err) {
         showCardError(card, err.message);
         resetTryBtn(btn);
@@ -641,7 +776,7 @@ async function pollJob(jobId, product, btn, card) {
         const job = await api(`/api/tryon/${jobId}`).then((r) => r.json());
         if (job.status === "done") {
             resetTryBtn(btn);
-            openModal(product, job.result_url);
+            openResult(product, job.result_url);
             loadGallery();
             return;
         }
@@ -651,11 +786,9 @@ async function pollJob(jobId, product, btn, card) {
             return;
         }
         const secs = Math.round((Date.now() - started) / 1000);
-        btn.textContent = job.status === "running"
-            ? `Fitting… ${secs}s`
-            : `Queued… ${secs}s`;
+        btn.textContent = job.status === "running" ? `Fitting… ${secs}s` : `Queued… ${secs}s`;
         if (secs > 360) {
-            showCardError(card, "Timed out after 6 minutes — the try-on service may be busy. Try again later.");
+            showCardError(card, "Timed out after 6 minutes — the try-on service may be busy.");
             resetTryBtn(btn);
             return;
         }
@@ -680,26 +813,7 @@ function clearCardError(card) {
     card.querySelector(".card-error")?.remove();
 }
 
-/* ---------------- Gallery ---------------- */
-
-async function clearGallery() {
-    const ok = confirm(
-        "Delete all your try-on images?\n\n" +
-        "They're removed from this computer. Trying the same items again " +
-        "will generate (and, with Gemini, charge for) new images.");
-    if (!ok) return;
-    const btn = $("#gallery-clear");
-    btn.disabled = true;
-    try {
-        const res = await api("/api/tryons", { method: "DELETE" });
-        if (!res.ok) throw new Error(res.statusText);
-        await loadGallery();
-    } catch (err) {
-        alert(`Couldn't clear the gallery: ${err.message}`);
-    } finally {
-        btn.disabled = false;
-    }
-}
+/* ---------------- Fitting room ---------------- */
 
 async function loadGallery() {
     try {
@@ -716,58 +830,65 @@ async function loadGallery() {
         for (const it of items) {
             const div = document.createElement("div");
             div.className = "gallery-item";
-            div.innerHTML = `
-                <img src="${it.result_url}" alt="${escapeHtml(it.product_name)}" loading="lazy">
+            div.innerHTML = `<img src="${it.result_url}" alt="${escapeHtml(it.product_name)}" loading="lazy">
                 <span>${escapeHtml(it.product_name || "Try-on")}</span>`;
             div.addEventListener("click", () =>
-                openModal(
-                    { name: it.product_name, image: it.garment_url, url: it.product_url },
-                    it.result_url
-                )
-            );
+                openResult({ name: it.product_name, image: it.garment_url, url: it.product_url },
+                           it.result_url));
             strip.appendChild(div);
         }
     } catch { /* non-fatal */ }
 }
 
-/* ---------------- Modal ---------------- */
+async function clearGallery() {
+    if (!confirm("Delete all your try-on images?\n\nTrying the same items again will " +
+                 "generate (and, with Gemini, charge for) new images.")) return;
+    const btn = $("#gallery-clear");
+    btn.disabled = true;
+    try {
+        const res = await api("/api/tryons", { method: "DELETE" });
+        if (!res.ok) throw new Error(res.statusText);
+        await loadGallery();
+    } catch (err) {
+        alert(`Couldn't clear the gallery: ${err.message}`);
+    } finally {
+        btn.disabled = false;
+    }
+}
 
-function setupModal() {
-    $("#modal-close").addEventListener("click", closeModal);
-    $("#modal").addEventListener("click", (e) => {
-        if (e.target === $("#modal")) closeModal();
+/* ---------------- Modals ---------------- */
+
+function setupModals() {
+    $("#gallery-clear").addEventListener("click", clearGallery);
+    $$(".modal").forEach((modal) => {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal || e.target.closest("[data-close]")) modal.hidden = true;
+        });
     });
     document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeModal();
+        if (e.key === "Escape") $$(".modal").forEach((m) => { m.hidden = true; });
     });
 }
 
-function openModal(product, resultUrl) {
+function openModal(sel) {
+    $(sel).hidden = false;
+}
+
+function openResult(product, resultUrl) {
     $("#modal-title").textContent = product.name || "Try-on result";
     $("#modal-garment").src = product.image
-        ? `/api/image-proxy?url=${encodeURIComponent(product.image)}`
-        : "";
+        ? `/api/image-proxy?url=${encodeURIComponent(product.image)}` : "";
     $("#modal-result").src = resultUrl;
     $("#modal-download").href = resultUrl;
     const shop = $("#modal-product");
-    if (product.url) {
-        shop.href = product.url;
-        shop.style.display = "";
-    } else {
-        shop.style.display = "none";
-    }
-    $("#modal").hidden = false;
-}
-
-function closeModal() {
-    $("#modal").hidden = true;
+    shop.style.display = product.url ? "" : "none";
+    if (product.url) shop.href = product.url;
+    openModal("#modal");
 }
 
 /* ---------------- Utils ---------------- */
 
-function sleep(ms) {
-    return new Promise((r) => setTimeout(r, ms));
-}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function escapeHtml(s) {
     return String(s ?? "")
