@@ -41,11 +41,9 @@ try-ons.
 
 ## See it in action
 
-**60-second demo** — search, filter, and try an item on a real photo:
+**Watch the demo** (search → filter → try-on) — click to play:
 
-https://github.com/riishabhz/Tryon/raw/main/docs/demo.mp4
-
-<video src="https://github.com/riishabhz/Tryon/raw/main/docs/demo.mp4" controls width="720"></video>
+[![Watch the Drip Lab demo](docs/images/demo-poster.jpg)](https://github.com/riishabhz/Tryon/raw/main/docs/demo.mp4)
 
 Real results from the app's **Fit check** view: the shop's product photo on the
 left, and the same item tried on a real photo (the author's, on Regent Street) on
