@@ -41,6 +41,12 @@ try-ons.
 
 ## See it in action
 
+**60-second demo** — search, filter, and try an item on a real photo:
+
+https://github.com/riishabhz/Tryon/raw/main/docs/demo.mp4
+
+<video src="https://github.com/riishabhz/Tryon/raw/main/docs/demo.mp4" controls width="720"></video>
+
 Real results from the app's **Fit check** view: the shop's product photo on the
 left, and the same item tried on a real photo (the author's, on Regent Street) on
 the right.

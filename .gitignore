@@ -7,6 +7,9 @@
 **/tryon_results/
 **/garment_cache/
 
+# stray recordings kept in the repo root
+/*.mp4
+
 __pycache__/
 *.pyc
 .venv/
