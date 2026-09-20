@@ -1,4 +1,4 @@
-# Drip Lab 🛍️ — live fashion search + AI virtual try-on
+# Drip Lab 🛍️ live fashion search + AI virtual try-on
 
 Search six UK fashion retailers at once (**Zara, H&M, boohoo, M&S, River Island,
 Seasalt**; women's and men's), then see any item **on your own photo** before
@@ -13,7 +13,7 @@ no shared limits.
 
 ## How to use it
 
-1. **Pick Women or Men**, then search for what you want — *"linen shirt"*,
+1. **Pick Women or Men**, then search for what you want  *"linen shirt"*,
    *"black tee"*, *"floral midi dress"*, *"wide-leg jeans"*. Results come live
    from the stores, so the first search takes a few seconds. You can also tap a
    **Trending** search, or browse with the type chips (All, Tops, T-shirts,
@@ -21,14 +21,14 @@ no shared limits.
 2. **Narrow it down** with **Stores ▾** (switch shops on or off), **Price ▾**
    (under £15 / £25 / £40 / £60) and **Sort** (recommended, or price). Whatever
    is on shows as a pill next to *Active:*, and **Clear** resets it.
-3. **Add your photo** — click **Try on with your photo** (or **My photo** in the
+3. **Add your photo**  click **Try on with your photo** (or **My photo** in the
    top bar) and upload one picture. Use a **full-body, portrait photo, standing
    and facing the camera**; a mirror selfie is ideal. Upload it once and it's
    reused for everything.
 4. **Press "Try it on"** on any item. The AI dresses you in that garment while
    keeping your face, pose and background. On the free hosted site it takes
    30 s – 2 min; running it yourself with Gemini takes about 10 s.
-5. **Keep what you like.** Every result lands in **"Fits you've tried"** — click
+5. **Keep what you like.** Every result lands in **"Fits you've tried"**  click
    one to see it large, **Save it** to download, or **Cop it →** to open the
    shop page. **♡** on any card saves it to **Saved**. **Clear all** deletes
    your try-on images.
@@ -207,9 +207,9 @@ Docker · Google Gemini API · Hugging Face `gradio_client` · Pillow
 
 ## Author and licence
 
-Built by **Rishabh Bhardwaj** — [LinkedIn](https://www.linkedin.com/in/rishabh-data-analytics/).
+Built by **Rishabh Bhardwaj**  [LinkedIn](https://www.linkedin.com/in/rishabh-data-analytics/).
 
-**Personal, non-commercial use only** — see [LICENSE](LICENSE). You're welcome
+**Personal, non-commercial use only**  see [LICENSE](LICENSE). You're welcome
 to run it, read it, learn from it and adapt it for yourself; selling it,
 hosting it as a paid or ad-supported service, or using it commercially needs
 my written permission.
