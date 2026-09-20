@@ -4,8 +4,12 @@ Search six UK fashion retailers at once (**Zara, H&M, boohoo, M&S, River Island,
 Seasalt**; women's and men's), then see any item **on your own photo** before
 you buy it.
 
-It runs entirely on your own computer. You bring your own API key, and nothing
-is hosted anywhere.
+**Try the free edition live: https://drip-lab.onrender.com**
+(free hosting, so the first visit after a quiet spell takes ~1 minute to wake
+up, and the free try-on allowance is shared between visitors.)
+
+Or run it on your own computer with your own API key, which is faster and has
+no shared limits.
 
 ---
 
@@ -114,6 +118,58 @@ Then open **http://localhost:8001** in your browser.
   which has a **Clear all** button.
 - **Back-button friendly.** Open a product in the shop, come back, and your
   results and scroll position are still there.
+
+## Hosting it yourself
+
+`tryon-kolors/` includes a `Dockerfile`, so the free edition can be hosted
+(Render, Fly.io, a VPS, or anywhere that runs Docker). The image sets
+`DRIPLAB_MULTIUSER=1`, which gives **every visitor a private photo and
+gallery**, identified by a random ID their browser sends, deleted after a day,
+with one try-on at a time each.
+
+Useful settings:
+
+| Variable | What it does |
+|---|---|
+| `DRIPLAB_MULTIUSER=1` | Private photo and gallery per visitor (set by the Dockerfile) |
+| `DRIPLAB_DISABLED_STORES` | Comma-separated stores to switch off, e.g. `zara`. Some stores block requests from cloud servers even though they work fine from a home connection |
+| `HF_TOKEN` | Optional Hugging Face token; raises the free try-on allowance, shared by all visitors |
+
+Note that hosted try-ons all share one free allowance, so a busy day means
+"quota exceeded" for visitors.
+
+## Engineering notes
+
+Some of the more interesting problems solved along the way:
+
+- **Every store needed a different approach.** M&S embeds its catalogue as
+  Next.js `__NEXT_DATA__` JSON. River Island and Seasalt render product HTML on
+  the server. Zara's pages sit behind a bot check, but its category JSON feed
+  doesn't. H&M blocks its website to scripts while exposing a search API.
+  boohoo renders products in the browser from Algolia, so the app queries the
+  same public search index its own site uses.
+- **Fixing try-on "face swaps".** With a head-and-shoulders photo, the image
+  model pasted the user's head onto the product model's body, sunglasses and
+  all. The fix: a stricter prompt (keep the customer's framing and body, never
+  copy the model or accessories), an output aspect ratio matched to the user's
+  photo, and **garment-only images** (M&S cut-outs, Zara flat-lays) where a
+  store provides them.
+- **Free models at a fixed 768×1024.** They re-draw the whole picture, which
+  loses small faces and stretches photos. The app now pastes only the
+  re-dressed clothing back onto the original photo, protecting the whole head
+  by finding the face-shaped gap in the model's own edit mask.
+- **Zara's categories are loose.** Its "dresses" feed includes blazers, so its
+  items are also filtered by Zara's own garment-family labels.
+- **Colour search where names don't include colour.** M&S product names omit
+  colour, so colour is read from variant data and searched alongside the name.
+- **Search that survives the Back button.** Search state lives in the URL and
+  session storage, so returning from a shop page restores results and scroll
+  position with no new requests.
+
+## Tech stack
+
+Python · FastAPI · Uvicorn · vanilla JavaScript/HTML/CSS (no build step) ·
+Docker · Google Gemini API · Hugging Face `gradio_client` · Pillow
 
 ## Privacy and your API key
 
