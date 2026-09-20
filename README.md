@@ -179,6 +179,15 @@ Docker · Google Gemini API · Hugging Face `gradio_client` · Pillow
   (Google, or a Hugging Face Space). Only upload photos of yourself or of
   people who have agreed.
 
+## Author and licence
+
+Built by **Rishabh Bhardwaj**.
+
+**Personal, non-commercial use only** — see [LICENSE](LICENSE). You're welcome
+to run it, read it, learn from it and adapt it for yourself; selling it,
+hosting it as a paid or ad-supported service, or using it commercially needs
+my written permission.
+
 ## Disclaimer
 
 A personal, educational project, **not affiliated with or endorsed by** any of

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Drip Lab — built by Rishabh Bhardwaj. Personal, non-commercial use only. See LICENSE. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -35,7 +36,9 @@
     </div>
 
     <div class="filter-bar">
-        <div class="chip-group" id="type-chips"><!-- populated from /api/types --></div>
+        <div class="type-scroller">
+            <div class="chip-group" id="type-chips"><!-- populated from /api/types --></div>
+        </div>
         <button type="button" class="filters-btn" id="filters-btn" aria-expanded="false" aria-controls="filters-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
             Filters <span class="filters-count" id="filters-count" hidden></span>
@@ -112,7 +115,10 @@
     </main>
 </div>
 
-<footer class="footer">Drip Lab · your photo is only used for your own try-ons · no cap</footer>
+<footer class="footer">
+    <span id="privacy-note">Your photo is used only to create your own try-ons.</span>
+    <span class="footer-credit">Built by Rishabh Bhardwaj · personal, non-commercial use</span>
+</footer>
 
 <!-- Try-on modal -->
 <div id="modal" class="modal" hidden>

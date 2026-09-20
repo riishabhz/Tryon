@@ -15,6 +15,9 @@ Stores come in two kinds:
 Results are cached per URL / query for CACHE_TTL seconds.
 """
 
+# Drip Lab — built by Rishabh Bhardwaj.
+# Personal, non-commercial use only. See LICENSE.
+
 import json
 import os
 import re

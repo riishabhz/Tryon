@@ -9,6 +9,9 @@ gets a private photo and gallery, identified by a random ID their browser
 sends in the X-Session-Id header. Locally everything belongs to one user.
 """
 
+# Drip Lab — built by Rishabh Bhardwaj.
+# Personal, non-commercial use only. See LICENSE.
+
 import hashlib
 import json
 import mimetypes
@@ -192,6 +195,12 @@ def api_search(q: str = "", type: str = "auto", gender: str = "women",
     store_keys = [s.strip() for s in stores.split(",") if s.strip()] or None
     return scraper.search(query=q, ctype=type, gender=gender,
                           stores=store_keys, max_per_store=min(max, 24))
+
+
+@app.get("/api/config")
+def api_config():
+    """What the page needs to describe itself honestly."""
+    return {"hosted": MULTIUSER, "photo_days": SESSION_MAX_AGE // 86400}
 
 
 @app.get("/api/stores")

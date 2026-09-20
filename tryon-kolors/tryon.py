@@ -19,6 +19,9 @@ downloaded locally. IDM-VTON also returns its mask preview, which is used to
 paste only the re-dressed area back onto the original photo (_composite).
 """
 
+# Drip Lab — built by Rishabh Bhardwaj.
+# Personal, non-commercial use only. See LICENSE.
+
 import inspect
 import os
 import shutil

@@ -1,3 +1,6 @@
+# Drip Lab — built by Rishabh Bhardwaj.
+# Personal, non-commercial use only. See LICENSE.
+
 # Runs the free (Hugging Face) edition as a public web app, e.g. on a
 # Hugging Face Docker Space. Every visitor gets a private photo and gallery.
 FROM python:3.11-slim

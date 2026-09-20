@@ -1,3 +1,6 @@
+/* Drip Lab — built by Rishabh Bhardwaj.
+   Personal, non-commercial use only. See LICENSE. */
+
 /* Atelier — fashion-boutique theme */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -603,7 +606,11 @@ body {
     font-size: 0.8em;
     padding: 26px 20px 34px;
     border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
+.footer-credit { color: #a79c8e; }
 
 /* ---------- Responsive ---------- */
 
@@ -669,13 +676,31 @@ a.view-btn {
 
 .filter-bar {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
     margin: 18px auto 0;
     max-width: 900px;
+    padding: 0 4px;
 }
-.filter-bar #type-chips { display: contents; }
+
+/* One row of type chips that scrolls sideways instead of wrapping. */
+.type-scroller {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* fade out the right edge only, as a hint that the row scrolls */
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+.type-scroller::-webkit-scrollbar { display: none; }
+.type-scroller #type-chips {
+    flex-wrap: nowrap;
+    width: max-content;
+    padding: 2px 2px;
+}
+.type-scroller .chip { flex: none; }
+.type-scroller .chip:not(.active) { background: var(--surface); }
+.filter-bar .filters-btn { flex: none; }
 
 .filters-btn {
     display: inline-flex;

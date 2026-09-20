@@ -1,3 +1,6 @@
+/* Drip Lab — built by Rishabh Bhardwaj.
+   Personal, non-commercial use only. See LICENSE. */
+
 /* Drip Lab — dynamic search + virtual try-on frontend */
 
 const $ = (sel) => document.querySelector(sel);
@@ -58,7 +61,8 @@ async function init() {
     setupControls();
     $("#gallery-clear").addEventListener("click", clearGallery);
 
-    await Promise.all([loadStores(), refreshPhoto(), loadGallery()]);
+    await Promise.all([loadStores(), refreshPhoto(), loadGallery(),
+                       loadPrivacyNote()]);
 
     const params = currentParams();
     applyParams(params);
@@ -166,6 +170,20 @@ function setGender(gender) {
     state.gender = gender === "men" ? "men" : "women";
     document.querySelectorAll("#gender-toggle button").forEach((b) =>
         b.classList.toggle("active", b.dataset.gender === state.gender));
+}
+
+// The page must not claim more than it can: a hosted copy keeps photos on
+// its server for a day, a local copy keeps them on your own computer.
+async function loadPrivacyNote() {
+    const note = $("#privacy-note");
+    try {
+        const cfg = await api("/api/config").then((r) => r.json());
+        note.textContent = cfg.hosted
+            ? `Your photo is private to this browser, used only to create your own try-ons, and deleted automatically after ${cfg.photo_days === 1 ? "24 hours" : `${cfg.photo_days} days`}.`
+            : "Your photo never leaves your computer, except when it is sent to the try-on AI.";
+    } catch {
+        note.textContent = "Your photo is used only to create your own try-ons.";
+    }
 }
 
 async function loadStores() {

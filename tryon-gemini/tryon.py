@@ -8,6 +8,9 @@ Requires GEMINI_API_KEY in .env (https://aistudio.google.com/apikey) on a
 project with billing enabled — image generation has no free tier.
 """
 
+# Drip Lab — built by Rishabh Bhardwaj.
+# Personal, non-commercial use only. See LICENSE.
+
 import base64
 import json
 import mimetypes
