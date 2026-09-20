@@ -720,6 +720,13 @@ body {
     gap: 6px;
 }
 .footer-credit { color: #a79c8e; }
+.footer-credit a {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-weight: 500;
+}
+.footer-credit a:hover { color: var(--accent-ink); }
 
 /* ---------- Responsive ---------- */
 
